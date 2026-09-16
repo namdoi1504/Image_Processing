@@ -2,7 +2,7 @@ import cv2
 import imutils
 import time
 
-model_path = "models/eccv16/starry_night.t7"
+model_path = "models/eccv16/the_wave.t7"
 net = cv2.dnn.readNetFromTorch(model_path)
 
 image = cv2.imread("images/monalisa.jpg")
@@ -22,4 +22,4 @@ output[0] += 103.939
 output[1] += 116.779
 output[2] += 123.680
 output = output.transpose(1, 2, 0)
-cv2.imwrite("images_val/monalisa_val.jpg", output)
+cv2.imwrite("images_val/1.jpg", output)
