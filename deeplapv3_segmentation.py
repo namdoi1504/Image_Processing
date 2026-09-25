@@ -10,7 +10,7 @@ preprocess = transforms.Compose([
 
 ])
 
-img = Image.open("images/maxmann-cycling-races-3637140_1920.jpg").convert("RGB")
+img = Image.open("images/img.jpg").convert("RGB")
 inp = preprocess(img).unsqueeze_(0)
 with torch.no_grad():
     out = model(inp)["out"][0]
@@ -18,4 +18,4 @@ mask = out.argmax(0).byte().numpy()
 
 plt.imshow(mask, cmap="inferno")
 plt.axis("off")
-plt.savefig("images_val/segmented.jpg", bbox_inches="tight", pad_inches=0)
+plt.savefig("images_val/img_val.jpg", bbox_inches="tight", pad_inches=0)

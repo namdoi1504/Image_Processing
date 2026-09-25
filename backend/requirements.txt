@@ -1,0 +1,12 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.11.0
+torchvision==0.26.0
+ultralytics==8.4.162
+# OpenCV 5 removed readNetFromTorch, required by the .t7 style models.
+opencv-python==4.11.0.86
+numpy==2.4.2
+pillow==12.2.0
+fastapi==0.136.1
+uvicorn==0.46.0
+python-multipart==0.0.26
+pi-heif==1.4.0

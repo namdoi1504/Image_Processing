@@ -1,5 +1,5 @@
 from ultralytics import YOLO
 model = YOLO("yolo26n.pt")
-results = model("images/cristiano.jpg")
+results = model("images/img.jpg")
 results[0].show()
-results[0].save("images_val/cristiano_val.jpg")
+results[0].save("images_val/img_val.jpg")

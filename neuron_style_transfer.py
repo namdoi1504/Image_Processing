@@ -2,10 +2,10 @@ import cv2
 import imutils
 import time
 
-model_path = "models/eccv16/the_wave.t7"
+model_path = "models/instance_norm/feathers.t7"
 net = cv2.dnn.readNetFromTorch(model_path)
 
-image = cv2.imread("images/monalisa.jpg")
+image = cv2.imread("images/img.jpg")
 image = imutils.resize(image, width=600)
 (h, w) = image.shape[:2]
 
@@ -22,4 +22,4 @@ output[0] += 103.939
 output[1] += 116.779
 output[2] += 123.680
 output = output.transpose(1, 2, 0)
-cv2.imwrite("images_val/1.jpg", output)
+cv2.imwrite("images_val/img_val.jpg", output)

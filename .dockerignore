@@ -1,0 +1,8 @@
+.git
+.venv
+.venv-web
+.idea
+web
+images
+images_val
+__pycache__

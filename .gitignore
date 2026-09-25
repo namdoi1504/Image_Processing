@@ -1,2 +1,12 @@
 .venv
 yolo26n.pt
+node_modules/
+dist/
+.env
+.env.local
+.vercel/
+.venv-web/
+__pycache__/
+test-results/
+playwright-report/
+backend/smoke-results/
