@@ -25,7 +25,7 @@ const samples = [
 ];
 const styles = { starry_night: 'Đêm đầy sao', feathers: 'Lông vũ', candy: 'Kẹo ngọt', mosaic: 'Khảm màu', udnie: 'Udnie', the_scream: 'Tiếng thét', la_muse: 'Nàng thơ' };
 const normalizeApiUrl = (value) => value.trim().replace(/\/+$/, '');
-let apiUrl = normalizeApiUrl(import.meta.env.VITE_API_URL ?? localStorage.getItem('vision-api') ?? '');
+let apiUrl = normalizeApiUrl(localStorage.getItem('vision-api') ?? import.meta.env.VITE_API_URL ?? '');
 let active = demos[0], selected = samples[0], uploaded = null, previewUrl = '', result = null, busy = false, compare = false;
 let confidence = 0.25, opacity = 0.6, style = 'starry_night';
 const $ = (s) => document.querySelector(s);
@@ -166,8 +166,7 @@ async function run() {
     const form = new FormData(); form.append('file', file, uploaded?.name || selected.file);
     form.append('demo', active.id); form.append('confidence', confidence); form.append('opacity', opacity); form.append('style', style);
     const response = await fetch(`${apiUrl}/predict`, { method: 'POST', body: form, signal: AbortSignal.timeout(300000) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Tham số không hợp lệ hoặc API không xử lý được ảnh.');
+    const data = await readApiResponse(response);
     if (!/^data:image\/(png|jpeg);base64,/.test(data.image) || !Number.isFinite(data.elapsed_seconds)) throw new Error('API trả về kết quả không hợp lệ.');
     present(data); message('Xử lý hoàn tất. Bạn có thể so sánh và tải kết quả.');
   } catch (err) { message(err.name === 'TimeoutError' ? 'API chưa trả kết quả sau 5 phút. Hãy kiểm tra máy chủ rồi thử lại.' : err instanceof TypeError ? 'Không kết nối được API. Kiểm tra địa chỉ, HTTPS và cấu hình CORS của máy chủ.' : err.message, true); }
@@ -208,6 +207,20 @@ function parseApi() {
   if (location.protocol === 'https:' && url.protocol === 'http:') throw new Error('Website HTTPS cần kết nối với API HTTPS.');
   return value;
 }
+async function readApiResponse(response) {
+  const text = await response.text();
+  if (response.headers.get('x-vercel-error') === 'DEPLOYMENT_NOT_FOUND' || text.includes('DEPLOYMENT_NOT_FOUND')) {
+    throw new Error('Địa chỉ API đang trỏ đến deployment Vercel không tồn tại. Hãy cấu hình URL backend Python đang chạy trong Kết nối mô hình.');
+  }
+  let data;
+  try { data = JSON.parse(text); }
+  catch {
+    throw new Error(`Máy chủ trả HTTP ${response.status}, không phải JSON của API. Hãy kiểm tra URL backend Python và endpoint /health.`);
+  }
+  if (!response.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : `API trả HTTP ${response.status}. Vui lòng kiểm tra máy chủ.`);
+  if (!data || typeof data !== 'object') throw new Error('API trả về JSON không hợp lệ.');
+  return data;
+}
 $('#settings-form').onsubmit = e => {
   e.preventDefault();
   try { apiUrl = parseApi(); localStorage.setItem('vision-api', apiUrl); updateConnection(); $('#settings-dialog').close(); }
@@ -215,7 +228,7 @@ $('#settings-form').onsubmit = e => {
 };
 $('#check-api').onclick = async () => {
   $('#check-api').disabled = true; $('#connection-status').textContent = 'Đang kiểm tra…';
-  try { const url = parseApi(); if (!url) throw new Error('Nhập địa chỉ API trước khi kiểm tra.'); const r = await fetch(`${url}/health`, { signal: AbortSignal.timeout(10000) }); const data = await r.json(); if (!r.ok || data.status !== 'ok') throw new Error('API chưa sẵn sàng.'); $('#connection-status').textContent = 'Kết nối thành công. Nhấn Lưu kết nối để sử dụng.'; }
+  try { const url = parseApi(); if (!url) throw new Error('Nhập địa chỉ API trước khi kiểm tra.'); const r = await fetch(`${url}/health`, { signal: AbortSignal.timeout(10000) }); const data = await readApiResponse(r); if (data.status !== 'ok') throw new Error('API chưa sẵn sàng.'); $('#connection-status').textContent = 'Kết nối thành công. Nhấn Lưu kết nối để sử dụng.'; }
   catch (err) { $('#connection-status').textContent = `Không kết nối được: ${err.message}`; }
   finally { $('#check-api').disabled = false; }
 };
