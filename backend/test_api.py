@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 from PIL import Image
-from backend.app import LOCK, app
+from backend.app import LOCK, _allowed_origins, app
 
 
 class ApiTests(unittest.TestCase):
@@ -47,6 +47,12 @@ class ApiTests(unittest.TestCase):
         response = self.client.options("/predict", headers={
             "Origin": "http://localhost:5173", "Access-Control-Request-Method": "POST"})
         self.assertEqual(response.headers["access-control-allow-origin"], "http://localhost:5173")
+
+    def test_cors_origins_are_normalized(self):
+            self.assertEqual(
+                _allowed_origins(" https://example.com/,http://localhost:5173/ "),
+                ["https://example.com", "http://localhost:5173"],
+            )
 
 
 if __name__ == "__main__":

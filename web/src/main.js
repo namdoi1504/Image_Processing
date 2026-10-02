@@ -24,12 +24,13 @@ const samples = [
   { id: 'monalisa', title: 'Nghệ thuật', file: 'monalisa.jpg' },
 ];
 const styles = { starry_night: 'Đêm đầy sao', feathers: 'Lông vũ', candy: 'Kẹo ngọt', mosaic: 'Khảm màu', udnie: 'Udnie', the_scream: 'Tiếng thét', la_muse: 'Nàng thơ' };
-let apiUrl = localStorage.getItem('vision-api') ?? import.meta.env.VITE_API_URL ?? '';
+const normalizeApiUrl = (value) => value.trim().replace(/\/+$/, '');
+let apiUrl = normalizeApiUrl(import.meta.env.VITE_API_URL ?? localStorage.getItem('vision-api') ?? '');
 let active = demos[0], selected = samples[0], uploaded = null, previewUrl = '', result = null, busy = false, compare = false;
 let confidence = 0.25, opacity = 0.6, style = 'starry_night';
 const $ = (s) => document.querySelector(s);
 const source = () => previewUrl || `/samples/${selected.file}`;
-const escape = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const escape = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 $('#app').innerHTML = `
   <aside class="sidebar">
@@ -200,7 +201,7 @@ $('#connection').onclick = () => { $('#api-url').value = apiUrl; $('#connection-
 $('#guide').onclick = () => $('#guide-dialog').showModal();
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => document.getElementById(b.dataset.close).close());
 function parseApi() {
-  const value = $('#api-url').value.trim().replace(/\/+$/, '');
+  const value = normalizeApiUrl($('#api-url').value);
   if (!value) return '';
   const url = new URL(value);
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('Vui lòng nhập địa chỉ HTTP/HTTPS không chứa tài khoản, query hoặc fragment.');

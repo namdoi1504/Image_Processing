@@ -28,12 +28,18 @@ STYLES = {name: ROOT / "models" / "instance_norm" / f"{name}.t7" for name in (
 Image.MAX_IMAGE_PIXELS = 25_000_000
 LOCK = threading.Lock()
 app = FastAPI(title="Vision Lab API", version="1.0.0")
+
+
+def _allowed_origins(value: str) -> list[str]:
+    return [origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in os.getenv(
-        "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
-    ).split(",") if origin.strip()],
-    allow_methods=["GET", "POST"],
+    allow_origins=_allowed_origins(os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,https://image.arthurdoi.id.vn,https://image-processing-pearl.vercel.app"
+    )),
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
 
