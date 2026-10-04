@@ -23,10 +23,12 @@ Từ thư mục gốc, dùng **Python 3.11** và môi trường mới:
 ```powershell
 py -3.11 -m venv .venv-web
 .\.venv-web\Scripts\python.exe -m pip install -r backend/requirements.txt
-.\.venv-web\Scripts\python.exe -m uvicorn backend.app:app --host 0.0.0.0 --port 8000
+.\backend\start.ps1
 ```
 
-Trên web, mở **Chế độ xem mẫu / Kết nối mô hình**, nhập `http://localhost:8000`, kiểm tra rồi lưu. Hoặc sao chép `web/.env.example` thành `web/.env.local` và khởi động lại Vite. Thiết lập lưu trong trình duyệt ưu tiên hơn biến môi trường.
+Frontend mặc định gọi API `https://image.arthurdoi.id.vn` khi nhấn **Chạy mô hình**, không cần nhập địa chỉ. `web/.env.local` đã cấu hình địa chỉ này. Backend local chạy cổng 8002. Khi đổi API, sửa `VITE_API_URL` rồi khởi động lại Vite (hoặc build lại khi deploy). Biến môi trường ưu tiên hơn địa chỉ lưu trong trình duyệt; nếu không có biến môi trường, có thể đổi địa chỉ trong **Kết nối mô hình**.
+
+Website `https://image.arthurdoi.id.vn` đã được cho phép trong CORS mặc định. Domain API này cần chuyển tiếp `/health` và `/predict` đến backend cổng 8002. Nếu cùng domain phục vụ frontend, proxy cần định tuyến hai endpoint này đến backend.
 
 - `GET /health`: kiểm tra API; `models_loaded` cho biết model đã nạp chưa. Health không tự tải weights.
 - `POST /predict`: multipart gồm `file`, `demo` (`detection`, `segmentation`, `style`), `confidence` (0.05–1), `opacity` (0–1), `style`.

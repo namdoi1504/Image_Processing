@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 from PIL import Image
-from backend.app import LOCK, _allowed_origins, app
+from backend.app import LOCK, _allowed_origins, app, style_model
 
 
 class ApiTests(unittest.TestCase):
@@ -20,6 +20,17 @@ class ApiTests(unittest.TestCase):
 
     def test_health(self):
         self.assertEqual(self.client.get("/health").json()["status"], "ok")
+
+    def test_style_without_torch_loader(self):
+        style_model.cache_clear()
+        try:
+            with patch("backend.app.cv2.dnn.readNetFromTorch", None, create=True):
+                response = self.post(demo="style")
+            self.assertEqual(response.status_code, 503)
+            self.assertIn("start.ps1", response.json()["detail"])
+            self.assertFalse(LOCK.locked())
+        finally:
+            style_model.cache_clear()
 
     def test_rejects_invalid_inputs(self):
         for data in ({"demo": "unknown"}, {"confidence": "1.1"}, {"style": "../../secret"}):

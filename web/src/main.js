@@ -25,7 +25,8 @@ const samples = [
 ];
 const styles = { starry_night: 'Đêm đầy sao', feathers: 'Lông vũ', candy: 'Kẹo ngọt', mosaic: 'Khảm màu', udnie: 'Udnie', the_scream: 'Tiếng thét', la_muse: 'Nàng thơ' };
 const normalizeApiUrl = (value) => value.trim().replace(/\/+$/, '');
-let apiUrl = normalizeApiUrl(localStorage.getItem('vision-api') ?? import.meta.env.VITE_API_URL ?? '');
+const defaultApiUrl = normalizeApiUrl(import.meta.env.VITE_API_URL || 'https://image.arthurdoi.id.vn');
+let apiUrl = normalizeApiUrl(import.meta.env.VITE_API_URL || localStorage.getItem('vision-api') || defaultApiUrl);
 let active = demos[0], selected = samples[0], uploaded = null, previewUrl = '', result = null, busy = false, compare = false;
 let confidence = 0.25, opacity = 0.6, style = 'starry_night';
 const $ = (s) => document.querySelector(s);
@@ -77,7 +78,7 @@ $('#app').innerHTML = `
     </main>
     <footer><span>Vision Lab <span> / </span> Chương 11 · Xử lý ảnh</span><span>Học hỏi. Thử nghiệm. Sáng tạo.</span></footer>
   </div>
-  <dialog id="settings-dialog"><form id="settings-form"><div class="dialog-heading"><h2>Kết nối mô hình</h2><button type="button" class="icon-button" data-close="settings-dialog" aria-label="Đóng">${icon('close')}</button></div><p>Nhập địa chỉ API Python để xử lý ảnh của bạn. Khi chưa kết nối, bạn vẫn có thể xem các kết quả mẫu đã lưu.</p><label for="api-url">Địa chỉ API</label><input id="api-url" type="url" placeholder="https://your-api.example.com"/><small>Chạy trên máy: http://localhost:8000. Địa chỉ được lưu trên trình duyệt này.</small><div id="connection-status" role="status"></div><div class="dialog-actions"><button type="button" class="secondary-button" id="check-api">Kiểm tra kết nối</button><button type="submit" class="primary-button">Lưu kết nối</button></div></form></dialog>
+  <dialog id="settings-dialog"><form id="settings-form"><div class="dialog-heading"><h2>Kết nối mô hình</h2><button type="button" class="icon-button" data-close="settings-dialog" aria-label="Đóng">${icon('close')}</button></div><p>Nhập địa chỉ API Python để xử lý ảnh của bạn. Khi chưa kết nối, bạn vẫn có thể xem các kết quả mẫu đã lưu.</p><label for="api-url">Địa chỉ API</label><input id="api-url" type="url" placeholder="https://your-api.example.com"/><small>Chạy trên máy: http://localhost:8002. Địa chỉ được lưu trên trình duyệt này.</small><div id="connection-status" role="status"></div><div class="dialog-actions"><button type="button" class="secondary-button" id="check-api">Kiểm tra kết nối</button><button type="submit" class="primary-button">Lưu kết nối</button></div></form></dialog>
   <dialog id="guide-dialog"><div class="dialog-heading"><h2>Bắt đầu khám phá</h2><button class="icon-button" data-close="guide-dialog" aria-label="Đóng">${icon('close')}</button></div><ol><li>Chọn một trong ba mô hình ở đầu trang.</li><li>Tải ảnh của bạn hoặc chọn một ảnh mẫu.</li><li>Điều chỉnh tham số, sau đó chọn <strong>Chạy mô hình</strong>.</li><li>Xem kết quả, kéo thanh so sánh hoặc tải ảnh về máy.</li></ol><p><strong>Chưa có API?</strong> Chọn “Xem kết quả mẫu có sẵn” ở bất kỳ demo nào. Đây là ảnh kết quả lưu sẵn từ dự án, không phải lần suy luận mới.</p><p>Để chạy cả ba mô hình với ảnh bất kỳ, khởi động API Python theo README và thiết lập địa chỉ trong “Kết nối mô hình”. Ảnh tải lên được xử lý trong bộ nhớ, không lưu vào thư viện.</p></dialog>
 `;
 
@@ -201,7 +202,7 @@ $('#guide').onclick = () => $('#guide-dialog').showModal();
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => document.getElementById(b.dataset.close).close());
 function parseApi() {
   const value = normalizeApiUrl($('#api-url').value);
-  if (!value) return '';
+  if (!value) return defaultApiUrl;
   const url = new URL(value);
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('Vui lòng nhập địa chỉ HTTP/HTTPS không chứa tài khoản, query hoặc fragment.');
   if (location.protocol === 'https:' && url.protocol === 'http:') throw new Error('Website HTTPS cần kết nối với API HTTPS.');

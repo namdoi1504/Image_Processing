@@ -19,13 +19,13 @@ test('saved examples, comparison, download and mode switching', async ({ page })
   await page.locator('.demo-card[data-demo="segmentation"]').click();
   await page.locator('#sample-run').click();
   await expect(page.locator('#preview')).toHaveAttribute('src', '/samples/cycling-result.png');
-  await page.locator('#run').click();
+  await page.locator('#connection').click();
   await expect(page.locator('#settings-dialog')).toBeVisible();
 });
 
 test('upload, API contract, result invalidation and API failure', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('vision-api', 'http://127.0.0.1:8000'));
-  await page.route('http://127.0.0.1:8000/predict', async route => {
+  await page.addInitScript(() => localStorage.setItem('vision-api', ''));
+  await page.route('https://image.arthurdoi.id.vn/predict', async route => {
     expect(route.request().method()).toBe('POST');
     expect(route.request().postDataBuffer().toString()).toContain('name="confidence"');
     const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nFkAAAAASUVORK5CYII=';
@@ -40,7 +40,7 @@ test('upload, API contract, result invalidation and API failure', async ({ page 
   await expect(page.locator('#result-details script')).toHaveCount(0);
   await page.locator('#parameter').fill('65');
   await expect(page.locator('#download')).toBeDisabled();
-  await page.route('http://127.0.0.1:8000/predict', route => route.fulfill({ status: 503, json: {detail:'Máy chủ đang bận.'} }));
+  await page.route('https://image.arthurdoi.id.vn/predict', route => route.fulfill({ status: 503, json: {detail:'Máy chủ đang bận.'} }));
   await page.locator('#run').click();
   await expect(page.locator('#status')).toHaveText('Máy chủ đang bận.');
   await expect(page.locator('#run')).toBeEnabled();

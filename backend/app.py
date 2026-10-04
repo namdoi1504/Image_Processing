@@ -3,6 +3,7 @@ import base64
 import io
 import logging
 import os
+import sys
 import threading
 import time
 from functools import lru_cache
@@ -15,6 +16,8 @@ import torch
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, ImageOps, UnidentifiedImageError
+# Keep Pillow's reader before Ultralytics patches Image.open with HEIF fallback.
+from PIL.Image import open as pillow_open
 from torchvision.models.segmentation import (
     DeepLabV3_ResNet101_Weights,
     deeplabv3_resnet101,
@@ -37,7 +40,7 @@ def _allowed_origins(value: str) -> list[str]:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins(os.getenv(
-        "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,https://image.arthurdoi.id.vn,https://image-processing-pearl.vercel.app"
+        "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,https://image.arthurdoi.id.vn,https://image-processing-1si.pages.dev"
     )),
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
@@ -61,7 +64,17 @@ def style_model(name):
     path = STYLES[name]
     if not path.is_file():
         raise HTTPException(503, f"Thiếu mô hình phong cách: {name}.t7")
-    return cv2.dnn.readNetFromTorch(str(path))
+    loader = getattr(cv2.dnn, "readNetFromTorch", None)
+    if not callable(loader):
+        logging.error("OpenCV %s (%s) lacks readNetFromTorch; Python: %s",
+                      cv2.__version__, cv2.__file__, sys.executable)
+        raise HTTPException(
+            503,
+            "OpenCV đang dùng không hỗ trợ model .t7. "
+            "Khởi động lại backend bằng .\\backend\\start.ps1 "
+            "để dùng môi trường .venv-web của dự án.",
+        )
+    return loader(str(path))
 
 
 @app.get("/health")
@@ -136,7 +149,7 @@ def predict(
     if len(raw) > 10 * 1024 * 1024:
         raise HTTPException(413, "Ảnh vượt quá giới hạn 10 MB.")
     try:
-        with Image.open(io.BytesIO(raw)) as original:
+        with pillow_open(io.BytesIO(raw)) as original:
             if original.format not in {"JPEG", "PNG", "WEBP"}:
                 raise HTTPException(415, "Chỉ hỗ trợ ảnh JPG, PNG và WEBP.")
             if original.width * original.height > 25_000_000:
