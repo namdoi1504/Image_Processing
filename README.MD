@@ -31,7 +31,8 @@ Frontend mặc định gọi API `https://image.arthurdoi.id.vn` khi nhấn **Ch
 Website `https://image.arthurdoi.id.vn` đã được cho phép trong CORS mặc định. Domain API này cần chuyển tiếp `/health` và `/predict` đến backend cổng 8002. Nếu cùng domain phục vụ frontend, proxy cần định tuyến hai endpoint này đến backend.
 
 - `GET /health`: kiểm tra API; `models_loaded` cho biết model đã nạp chưa. Health không tự tải weights.
-- `POST /predict`: multipart gồm `file`, `demo` (`detection`, `segmentation`, `style`), `confidence` (0.05–1), `opacity` (0–1), `style`.
+- `POST /predict`: multipart gồm `file`, `demo` (`detection`, `segmentation`, `style`, `ascii`), `confidence` (0.05–1), `opacity` (0–1), `style`, `ascii_columns` (40–240, mặc định 100).
+- **Ảnh ASCII**: chuyển độ sáng thành ký tự trên nền tối, không cần weights mới. Chỉnh số cột, xem/so sánh ảnh PNG và tải văn bản `.txt` để mở bằng font monospace. API trả thêm `ascii_text`; ảnh rất cao được giới hạn 240 dòng để kiểm soát bộ nhớ.
 - JSON trả ảnh PNG base64, tên model, thời gian, kích thước, danh sách dự đoán/tỉ lệ lớp.
 - JPG/PNG/WEBP, tối đa 10 MB và 25 triệu pixel. Giảm kích thước tối đa 1600 px; segmentation 900 px; style 800 px. Tệp upload tạm được đóng sau khi đọc; không lưu ảnh kết quả trên server.
 - YOLO dùng `yolo26n.pt` tại gốc; nếu thiếu, Ultralytics tải weights. DeepLabV3 tải weights torchvision lần đầu, cần mạng và dung lượng cache. Lần đầu có thể lâu hơn.

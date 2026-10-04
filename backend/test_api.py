@@ -1,5 +1,6 @@
 """Validation tests without weights: python -m unittest backend.test_api."""
 import io
+import base64
 import unittest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
@@ -20,6 +21,31 @@ class ApiTests(unittest.TestCase):
 
     def test_health(self):
         self.assertEqual(self.client.get("/health").json()["status"], "ok")
+
+    def test_ascii_brightness_and_png(self):
+        for color, expected in (("black", " "), ("white", "@")):
+            buffer = io.BytesIO()
+            Image.new("RGB", (80, 40), color).save(buffer, format="PNG")
+            self.image = buffer.getvalue()
+            response = self.post(demo="ascii", ascii_columns="80")
+            self.assertEqual(response.status_code, 200)
+            data = response.json()
+            lines = data["ascii_text"].split("\n")
+            self.assertEqual(len(lines), 24)
+            self.assertTrue(all(line == expected * 80 for line in lines))
+            with Image.open(io.BytesIO(base64.b64decode(data["image"].split(",", 1)[1]))) as png:
+                self.assertEqual(png.size, (data["width"], data["height"]))
+            self.assertIn("elapsed_seconds", data)
+
+    def test_ascii_limits_and_tall_image(self):
+        for columns in (0, 39, 241, "bad"):
+            self.assertEqual(self.post(demo="ascii", ascii_columns=columns).status_code, 422)
+        buffer = io.BytesIO()
+        Image.new("RGB", (1, 1600), "white").save(buffer, format="PNG")
+        self.image = buffer.getvalue()
+        response = self.post(demo="ascii", ascii_columns=240)
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(response.json()["height"], 4800)
 
     def test_style_without_torch_loader(self):
         style_model.cache_clear()

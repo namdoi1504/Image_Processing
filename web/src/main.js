@@ -17,6 +17,7 @@ const demos = [
   { id: 'detection', number: '01', icon: 'scan', title: 'Nhận diện vật thể', model: 'YOLO26', subtitle: 'Tìm và gọi tên những gì có trong ảnh.', description: 'Xác định vị trí và phân loại vật thể bằng khung bao, kèm độ tin cậy cho từng dự đoán.', sample: 'zebras', result: 'zebras-result.jpg' },
   { id: 'segmentation', number: '02', icon: 'layers', title: 'Phân vùng ảnh', model: 'DeepLabV3', subtitle: 'Hiểu bức ảnh đến từng điểm ảnh.', description: 'Gán nhãn cho từng điểm ảnh với 21 lớp ngữ nghĩa, sau đó phủ màu để quan sát từng vùng.', sample: 'cycling', result: 'cycling-result.png' },
   { id: 'style', number: '03', icon: 'wand', title: 'Chuyển phong cách', model: 'Neural Style Transfer', subtitle: 'Biến khoảnh khắc thành tác phẩm.', description: 'Giữ nội dung bức ảnh và tái tạo nó bằng màu sắc, nét vẽ của phong cách nghệ thuật đã chọn.', sample: 'monalisa', result: 'monalisa-result.jpg' },
+  { id: 'ascii', number: '04', icon: 'image', title: 'Ảnh ASCII', model: 'ASCII Art', subtitle: 'Vẽ lại ảnh bằng những ký tự.', description: 'Chuyển độ sáng thành ký tự ASCII trên nền tối. Tăng số cột để giữ nhiều chi tiết hơn.', sample: 'monalisa' },
 ];
 const samples = [
   { id: 'zebras', title: 'Thiên nhiên', file: 'zebras.jpg' },
@@ -29,6 +30,7 @@ const defaultApiUrl = normalizeApiUrl(import.meta.env.VITE_API_URL || 'https://i
 let apiUrl = normalizeApiUrl(import.meta.env.VITE_API_URL || localStorage.getItem('vision-api') || defaultApiUrl);
 let active = demos[0], selected = samples[0], uploaded = null, previewUrl = '', result = null, busy = false, compare = false;
 let confidence = 0.25, opacity = 0.6, style = 'starry_night';
+let asciiColumns = 100;
 const $ = (s) => document.querySelector(s);
 const source = () => previewUrl || `/samples/${selected.file}`;
 const escape = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -45,7 +47,7 @@ $('#app').innerHTML = `
   <div class="main-shell">
     <header><div class="breadcrumb">Phòng thực hành <span>/</span> <strong>Xử lý ảnh</strong></div><button id="connection" class="connection"><span class="online-dot"></span><span id="connection-label"></span>${icon('settings')}</button></header>
     <main>
-      <div class="intro"><div><div class="eyebrow"><span></span> COMPUTER VISION PLAYGROUND</div><h1>Nhìn thế giới <span>theo cách khác.</span></h1><p>Khám phá các mô hình AI qua những thử nghiệm trực quan của riêng bạn.</p></div><span class="intro-badge">3 mô hình <span>·</span> Vô vàn khám phá</span></div>
+      <div class="intro"><div><div class="eyebrow"><span></span> COMPUTER VISION PLAYGROUND</div><h1>Nhìn thế giới <span>theo cách khác.</span></h1><p>Khám phá các mô hình AI qua những thử nghiệm trực quan của riêng bạn.</p></div><span class="intro-badge">4 chế độ <span>·</span> Vô vàn khám phá</span></div>
       <section class="demo-grid" aria-label="Chọn mô hình">${demos.map(d => `<button class="demo-card" data-demo="${d.id}"><div class="card-top"><span class="card-icon">${icon(d.icon)}</span><span class="model-tag">${d.model}</span><span class="card-number">${d.number}</span></div><h2>${d.title}</h2><p>${d.subtitle}</p><span class="card-arrow">↗</span></button>`).join('')}</section>
       <section class="workspace">
         <div class="workspace-heading"><div><span class="section-kicker">BÀN THỰC HÀNH</span><h2 id="workspace-title"></h2></div><span class="step-badge">Tải ảnh <span>→</span> Tùy chỉnh <span>→</span> Khám phá</span></div>
@@ -70,7 +72,7 @@ $('#app').innerHTML = `
             <div class="image-meta"><span id="filename"></span><span id="dimensions"></span></div>
             <div id="status" role="status" aria-live="polite"></div>
             <div class="result-footer"><span id="result-summary">Mọi khám phá bắt đầu từ một bức ảnh.</span><button id="download" class="download-button" disabled>${icon('download')} Tải kết quả</button></div>
-            <div id="result-details" class="result-details"></div>
+            <button id="download-text" class="download-button" hidden>Tải ASCII .txt</button><div id="result-details" class="result-details"></div>
           </div>
         </div>
       </section>
@@ -79,7 +81,7 @@ $('#app').innerHTML = `
     <footer><span>Vision Lab <span> / </span> Chương 11 · Xử lý ảnh</span><span>Học hỏi. Thử nghiệm. Sáng tạo.</span></footer>
   </div>
   <dialog id="settings-dialog"><form id="settings-form"><div class="dialog-heading"><h2>Kết nối mô hình</h2><button type="button" class="icon-button" data-close="settings-dialog" aria-label="Đóng">${icon('close')}</button></div><p>Nhập địa chỉ API Python để xử lý ảnh của bạn. Khi chưa kết nối, bạn vẫn có thể xem các kết quả mẫu đã lưu.</p><label for="api-url">Địa chỉ API</label><input id="api-url" type="url" placeholder="https://your-api.example.com"/><small>Chạy trên máy: http://localhost:8002. Địa chỉ được lưu trên trình duyệt này.</small><div id="connection-status" role="status"></div><div class="dialog-actions"><button type="button" class="secondary-button" id="check-api">Kiểm tra kết nối</button><button type="submit" class="primary-button">Lưu kết nối</button></div></form></dialog>
-  <dialog id="guide-dialog"><div class="dialog-heading"><h2>Bắt đầu khám phá</h2><button class="icon-button" data-close="guide-dialog" aria-label="Đóng">${icon('close')}</button></div><ol><li>Chọn một trong ba mô hình ở đầu trang.</li><li>Tải ảnh của bạn hoặc chọn một ảnh mẫu.</li><li>Điều chỉnh tham số, sau đó chọn <strong>Chạy mô hình</strong>.</li><li>Xem kết quả, kéo thanh so sánh hoặc tải ảnh về máy.</li></ol><p><strong>Chưa có API?</strong> Chọn “Xem kết quả mẫu có sẵn” ở bất kỳ demo nào. Đây là ảnh kết quả lưu sẵn từ dự án, không phải lần suy luận mới.</p><p>Để chạy cả ba mô hình với ảnh bất kỳ, khởi động API Python theo README và thiết lập địa chỉ trong “Kết nối mô hình”. Ảnh tải lên được xử lý trong bộ nhớ, không lưu vào thư viện.</p></dialog>
+  <dialog id="guide-dialog"><div class="dialog-heading"><h2>Bắt đầu khám phá</h2><button class="icon-button" data-close="guide-dialog" aria-label="Đóng">${icon('close')}</button></div><ol><li>Chọn chế độ xử lý ở đầu trang.</li><li>Tải ảnh của bạn hoặc chọn một ảnh mẫu.</li><li>Điều chỉnh tham số, sau đó chọn <strong>Chạy mô hình</strong>.</li><li>Xem kết quả, kéo thanh so sánh hoặc tải ảnh về máy.</li></ol><p><strong>Chưa có API?</strong> Chọn “Xem kết quả mẫu có sẵn” ở bất kỳ demo nào. Đây là ảnh kết quả lưu sẵn từ dự án, không phải lần suy luận mới.</p><p>Để chạy cả ba mô hình với ảnh bất kỳ, khởi động API Python theo README và thiết lập địa chỉ trong “Kết nối mô hình”. Ảnh tải lên được xử lý trong bộ nhớ, không lưu vào thư viện.</p></dialog>
 `;
 
 function message(text = '', error = false) { $('#status').textContent = text; $('#status').className = error ? 'error' : ''; }
@@ -89,6 +91,7 @@ function updateConnection() {
   $('#mode-note').textContent = apiUrl ? 'Ảnh được gửi đến API bạn đã cấu hình.' : 'Kết nối API để chạy mô hình trên ảnh của bạn.';
 }
 function clearResult() {
+  $('#download-text').hidden = true;
   result = null; compare = false;
   $('#result-tab').disabled = $('#download').disabled = $('#compare').disabled = true;
   $('#result-details').replaceChildren();
@@ -116,6 +119,11 @@ function setSample(id) {
   $('#filename').textContent = selected.file; clearResult();
 }
 function parameters() {
+  if (active.id === 'ascii') {
+    $('#parameters').innerHTML = `<div class="range-heading"><label for="parameter">Độ chi tiết ASCII</label><output id="parameter-value">${asciiColumns} cột</output></div><input id="parameter" type="range" min="40" max="240" step="10" value="${asciiColumns}"/><div class="range-ticks"><span>40 cột</span><span>240 cột</span></div><p class="parameter-help">Kết quả có thể tải dưới dạng ảnh PNG hoặc văn bản .txt.</p>`;
+    $('#parameter').oninput = e => { asciiColumns = Number(e.target.value); $('#parameter-value').textContent = `${asciiColumns} cột`; clearResult(); };
+    return;
+  }
   $('#parameters').innerHTML = active.id === 'style'
     ? `<label class="field-label" for="style">Phong cách nghệ thuật</label><select id="style">${Object.entries(styles).map(([id, name]) => `<option value="${id}" ${style === id ? 'selected' : ''}>${name}</option>`).join('')}</select><p class="parameter-help">Mỗi phong cách sử dụng một mô hình đã huấn luyện riêng.</p>`
     : `<div class="range-heading"><label for="parameter">${active.id === 'detection' ? 'Ngưỡng tin cậy' : 'Độ phủ lớp màu'}</label><output id="parameter-value">${Math.round((active.id === 'detection' ? confidence : opacity) * 100)}%</output></div><input id="parameter" type="range" min="${active.id === 'detection' ? 5 : 0}" max="100" value="${(active.id === 'detection' ? confidence : opacity) * 100}"/><div class="range-ticks"><span>${active.id === 'detection' ? '5%' : '0%'}</span><span>100%</span></div><p class="parameter-help">${active.id === 'detection' ? 'Tăng ngưỡng để chỉ giữ dự đoán có độ tin cậy cao.' : 'Điều chỉnh mức độ hiển thị của vùng phân loại trên ảnh gốc.'}</p>`;
@@ -153,6 +161,7 @@ function setBusy(value) {
   $('#run span').textContent = value ? 'Đang xử lý…' : 'Chạy mô hình';
 }
 function present(data) {
+  $('#download-text').hidden = typeof data.ascii_text !== 'string';
   result = data; $('#result-tab').disabled = $('#download').disabled = $('#compare').disabled = false;
   $('#result-summary').textContent = data.saved ? 'Ảnh kết quả đã lưu từ dự án Python' : `${data.model} · ${data.elapsed_seconds.toFixed(2)} giây · ${data.width} × ${data.height} px`;
   $('#result-details').innerHTML = (data.items || []).map(i => `<span class="result-chip">${escape(i.label)} <strong>${escape(i.value)}</strong></span>`).join('');
@@ -166,6 +175,7 @@ async function run() {
     const file = uploaded || await fetch(source()).then(r => { if (!r.ok) throw new Error('Không tải được ảnh mẫu.'); return r.blob(); });
     const form = new FormData(); form.append('file', file, uploaded?.name || selected.file);
     form.append('demo', active.id); form.append('confidence', confidence); form.append('opacity', opacity); form.append('style', style);
+    if (active.id === 'ascii') form.append('ascii_columns', asciiColumns);
     const response = await fetch(`${apiUrl}/predict`, { method: 'POST', body: form, signal: AbortSignal.timeout(300000) });
     const data = await readApiResponse(response);
     if (!/^data:image\/(png|jpeg);base64,/.test(data.image) || !Number.isFinite(data.elapsed_seconds)) throw new Error('API trả về kết quả không hợp lệ.');
@@ -197,6 +207,12 @@ $('#compare').onclick = () => {
 function split(value) { $('#overlay').style.clipPath = `inset(0 0 0 ${value}%)`; $('.compare-line').style.left = `${value}%`; }
 $('#split').oninput = e => split(e.target.value);
 $('#download').onclick = () => { if (!result) return; const a = document.createElement('a'); a.href = result.image; a.download = `visionlab-${active.id}.${result.saved && result.image.endsWith('.jpg') ? 'jpg' : 'png'}`; a.click(); };
+$('#download-text').onclick = () => {
+  if (typeof result?.ascii_text !== 'string') return;
+  const url = URL.createObjectURL(new Blob([result.ascii_text], { type: 'text/plain;charset=utf-8' }));
+  const a = document.createElement('a'); a.href = url; a.download = 'visionlab-ascii.txt'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 $('#connection').onclick = () => { $('#api-url').value = apiUrl; $('#connection-status').textContent = ''; $('#settings-dialog').showModal(); };
 $('#guide').onclick = () => $('#guide-dialog').showModal();
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => document.getElementById(b.dataset.close).close());

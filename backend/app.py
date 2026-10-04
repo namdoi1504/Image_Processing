@@ -86,6 +86,32 @@ def health():
     }}
 
 
+def ascii_art(image, columns=100):
+    """Map brightness to fixed-width glyphs; bound tall-image render cost."""
+    cell_width, cell_height = 12, 20
+    rows = max(1, round(columns * image.height / image.width * cell_width / cell_height))
+    if rows > 240:
+        columns = max(1, round(columns * 240 / rows))
+        rows = 240
+    gray = np.array(image.convert("L").resize((columns, rows), Image.Resampling.LANCZOS))
+    ramp = np.array(list(" .:-=+*#%@"))
+    glyphs = ramp[gray.astype(np.uint16) * (len(ramp) - 1) // 255]
+    lines = ["".join(row) for row in glyphs]
+    canvas = np.zeros((rows * cell_height, columns * cell_width, 3), dtype=np.uint8)
+    for y, row in enumerate(lines):
+        for x, char in enumerate(row):
+            if char != " ":
+                cv2.putText(canvas, char, (x * cell_width, y * cell_height + 15),
+                            cv2.FONT_HERSHEY_PLAIN, 1.0, (235, 245, 235), 1, cv2.LINE_AA)
+    buffer = io.BytesIO()
+    Image.fromarray(canvas).save(buffer, format="PNG")
+    return {"image": "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode(),
+            "model": "ASCII Art", "width": canvas.shape[1], "height": canvas.shape[0],
+            "ascii_text": "\n".join(lines), "items": [
+                {"label": "Cột × dòng", "value": f"{columns} × {rows}"},
+            ]}
+
+
 def infer(image, demo, confidence, opacity, style):
     """Serialize access: OpenCV DNN and shared models have mutable state."""
     items = []
@@ -135,10 +161,11 @@ def infer(image, demo, confidence, opacity, style):
 @app.post("/predict")
 def predict(
     file: Annotated[UploadFile, File()],
-    demo: Annotated[Literal["detection", "segmentation", "style"], Form()],
+    demo: Annotated[Literal["detection", "segmentation", "style", "ascii"], Form()],
     confidence: Annotated[float, Form(ge=0.05, le=1)] = 0.25,
     opacity: Annotated[float, Form(ge=0, le=1)] = 0.6,
     style: Annotated[str, Form()] = "starry_night",
+    ascii_columns: Annotated[int, Form(ge=40, le=240)] = 100,
 ):
     if style not in STYLES:
         raise HTTPException(422, "Phong cách không hợp lệ.")
@@ -164,7 +191,8 @@ def predict(
         raise HTTPException(503, "Máy chủ đang xử lý một ảnh khác. Vui lòng thử lại sau.")
     try:
         start = time.perf_counter()
-        result = infer(image, demo, confidence, opacity, style)
+        result = (ascii_art(image, ascii_columns) if demo == "ascii"
+                  else infer(image, demo, confidence, opacity, style))
         result["elapsed_seconds"] = round(time.perf_counter() - start, 3)
         return result
     except HTTPException:

@@ -1,6 +1,32 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 
+test('ASCII controls, request, text download and invalidation', async ({ page }) => {
+  await page.route('https://image.arthurdoi.id.vn/predict', async route => {
+    const body = route.request().postDataBuffer().toString();
+    expect(body).toContain('name="ascii_columns"\r\n\r\n160');
+    expect(body).toContain('name="demo"\r\n\r\nascii');
+    await route.fulfill({ json: {
+      image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nFkAAAAASUVORK5CYII=',
+      model: 'ASCII Art', elapsed_seconds: 0.01, width: 1920, height: 1200,
+      ascii_text: '@@..\n  ##', items: [],
+    } });
+  });
+  await page.goto('/');
+  await page.locator('.demo-card[data-demo="ascii"]').click();
+  await expect(page.locator('#sample-run')).toBeHidden();
+  await page.locator('#parameter').fill('160');
+  await expect(page.locator('#parameter-value')).toHaveText('160 cột');
+  await page.locator('#run').click();
+  await expect(page.locator('#result-summary')).toContainText('ASCII Art');
+  const download = page.waitForEvent('download');
+  await page.locator('#download-text').click();
+  expect((await download).suggestedFilename()).toBe('visionlab-ascii.txt');
+  await page.locator('#parameter').fill('120');
+  await expect(page.locator('#download-text')).toBeHidden();
+  await expect(page.locator('#download')).toBeDisabled();
+});
+
 test('saved examples, comparison, download and mode switching', async ({ page }) => {
   await page.goto('/');
   await page.locator('#sample-run').click();
