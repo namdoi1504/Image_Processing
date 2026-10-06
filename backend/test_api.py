@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 from PIL import Image
+import numpy as np
 from backend.app import LOCK, _allowed_origins, app, style_model
 
 
@@ -23,7 +24,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/health").json()["status"], "ok")
 
     def test_ascii_brightness_and_png(self):
-        for color, expected in (("black", " "), ("white", "@")):
+        for color in ("black", "white"):
             buffer = io.BytesIO()
             Image.new("RGB", (80, 40), color).save(buffer, format="PNG")
             self.image = buffer.getvalue()
@@ -32,10 +33,30 @@ class ApiTests(unittest.TestCase):
             data = response.json()
             lines = data["ascii_text"].split("\n")
             self.assertEqual(len(lines), 24)
-            self.assertTrue(all(line == expected * 80 for line in lines))
+            self.assertTrue(all(len(line) == 80 for line in lines))
+            if color == "white":
+                self.assertTrue(all(line == " " * 80 for line in lines))
+            else:
+                self.assertTrue(all(line.strip() for line in lines))
             with Image.open(io.BytesIO(base64.b64decode(data["image"].split(",", 1)[1]))) as png:
                 self.assertEqual(png.size, (data["width"], data["height"]))
+                pixels = np.array(png)
+                self.assertGreater(pixels.mean(), 225)
+                self.assertGreaterEqual(pixels.min(), 85)
             self.assertIn("elapsed_seconds", data)
+
+    def test_ascii_tonal_order_and_contours(self):
+        from backend.app import ascii_art
+        gradient = np.tile(np.linspace(0, 255, 320, dtype=np.uint8), (160, 1))
+        result = ascii_art(Image.fromarray(gradient), 80)
+        pixels = np.array(Image.open(io.BytesIO(base64.b64decode(
+            result["image"].split(",", 1)[1]))))
+        self.assertLess(pixels[:, :240].mean(), pixels[:, -240:].mean())
+        # Equal-average cells should retain a boundary that flat shading lacks.
+        flat = Image.new("L", (320, 160), 128)
+        striped = np.tile(np.array([0, 0, 255, 255], dtype=np.uint8), (160, 80))
+        self.assertNotEqual(ascii_art(flat, 80)["ascii_text"],
+                            ascii_art(Image.fromarray(striped), 80)["ascii_text"])
 
     def test_ascii_limits_and_tall_image(self):
         for columns in (0, 39, 241, "bad"):

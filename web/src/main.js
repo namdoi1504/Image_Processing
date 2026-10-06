@@ -17,7 +17,7 @@ const demos = [
   { id: 'detection', number: '01', icon: 'scan', title: 'Nhận diện vật thể', model: 'YOLO26', subtitle: 'Tìm và gọi tên những gì có trong ảnh.', description: 'Xác định vị trí và phân loại vật thể bằng khung bao, kèm độ tin cậy cho từng dự đoán.', sample: 'zebras', result: 'zebras-result.jpg' },
   { id: 'segmentation', number: '02', icon: 'layers', title: 'Phân vùng ảnh', model: 'DeepLabV3', subtitle: 'Hiểu bức ảnh đến từng điểm ảnh.', description: 'Gán nhãn cho từng điểm ảnh với 21 lớp ngữ nghĩa, sau đó phủ màu để quan sát từng vùng.', sample: 'cycling', result: 'cycling-result.png' },
   { id: 'style', number: '03', icon: 'wand', title: 'Chuyển phong cách', model: 'Neural Style Transfer', subtitle: 'Biến khoảnh khắc thành tác phẩm.', description: 'Giữ nội dung bức ảnh và tái tạo nó bằng màu sắc, nét vẽ của phong cách nghệ thuật đã chọn.', sample: 'monalisa', result: 'monalisa-result.jpg' },
-  { id: 'ascii', number: '04', icon: 'image', title: 'Ảnh ASCII', model: 'ASCII Art', subtitle: 'Vẽ lại ảnh bằng những ký tự.', description: 'Chuyển độ sáng thành ký tự ASCII trên nền tối. Tăng số cột để giữ nhiều chi tiết hơn.', sample: 'monalisa' },
+  { id: 'ascii', number: '04', icon: 'image', title: 'Ảnh ASCII', model: 'ASCII Art', subtitle: 'Phác họa nét chì bằng ký tự.', description: 'Nét chì xám trên nền giấy trắng, bóng nhẹ và đường viền rõ. Tăng số cột để giữ nhiều chi tiết hơn.', sample: 'monalisa' },
 ];
 const samples = [
   { id: 'zebras', title: 'Thiên nhiên', file: 'zebras.jpg' },

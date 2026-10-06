@@ -86,23 +86,57 @@ def health():
     }}
 
 
+@lru_cache(maxsize=1)
+def pencil_glyphs():
+    """Measure the actual rendered ink coverage, rather than guessing a ramp."""
+    tiles = []
+    for char in " .,:;'-`^\"/\\|!il()[]{}rt+=xvcsz*?o%&#MW@$":
+        tile = np.zeros((20, 12), dtype=np.uint8)
+        if char != " ":
+            cv2.putText(tile, char, (0, 15), cv2.FONT_HERSHEY_PLAIN,
+                        1.0, 255, 1, cv2.LINE_AA)
+        tiles.append((char, tile, float(tile.mean())))
+    tiles.sort(key=lambda item: item[2])
+    return tiles
+
+
 def ascii_art(image, columns=100):
-    """Map brightness to fixed-width glyphs; bound tall-image render cost."""
+    """Render graphite ASCII on white paper with lifted shadows and fine edges."""
     cell_width, cell_height = 12, 20
     rows = max(1, round(columns * image.height / image.width * cell_width / cell_height))
     if rows > 240:
         columns = max(1, round(columns * 240 / rows))
         rows = 240
-    gray = np.array(image.convert("L").resize((columns, rows), Image.Resampling.LANCZOS))
-    ramp = np.array(list(" .:-=+*#%@"))
-    glyphs = ramp[gray.astype(np.uint16) * (len(ramp) - 1) // 255]
+    # Work above the character resolution so small contours survive averaging.
+    gray = np.array(image.convert("L").resize(
+        (columns * 4, rows * 4), Image.Resampling.LANCZOS)).astype(np.float32) / 255
+    smooth = cv2.GaussianBlur(gray, (0, 0), 0.65)
+    local = cv2.GaussianBlur(smooth, (0, 0), 3.0)
+    # Color dodge lifts broad dark regions; a small tonal layer keeps depth.
+    sketch = np.minimum((smooth + 0.025) / (local + 0.025), 1.0)
+    gx = cv2.Sobel(smooth, cv2.CV_32F, 1, 0, ksize=3) / 8
+    gy = cv2.Sobel(smooth, cv2.CV_32F, 0, 1, ksize=3) / 8
+    edges = np.clip(np.hypot(gx, gy) * 2.5, 0, 1)
+    ink = np.clip(0.72 * (1 - sketch) + 0.24 * (1 - smooth) ** 1.6
+                  + 0.28 * edges, 0, 0.85)
+    ink = cv2.resize(ink, (columns, rows), interpolation=cv2.INTER_AREA)
+    tiles = pencil_glyphs()
+    coverage = np.array([item[2] for item in tiles], dtype=np.float32)
+    coverage /= coverage[-1]
+    # Cap graphite strength to avoid solid black patches, even on dark inputs.
+    density = np.clip(ink / 0.55, 0, 1)
+    indices = np.abs(density[..., None] - coverage).argmin(axis=2)
+    glyphs = np.array([item[0] for item in tiles])[indices]
     lines = ["".join(row) for row in glyphs]
-    canvas = np.zeros((rows * cell_height, columns * cell_width, 3), dtype=np.uint8)
+    canvas = np.full((rows * cell_height, columns * cell_width), 255, dtype=np.uint8)
     for y, row in enumerate(lines):
         for x, char in enumerate(row):
             if char != " ":
-                cv2.putText(canvas, char, (x * cell_width, y * cell_height + 15),
-                            cv2.FONT_HERSHEY_PLAIN, 1.0, (235, 245, 235), 1, cv2.LINE_AA)
+                strength = 105 + 65 * float(density[y, x])
+                tile = tiles[indices[y, x]][1]
+                canvas[y * cell_height:(y + 1) * cell_height,
+                       x * cell_width:(x + 1) * cell_width] = np.rint(
+                           255 - tile.astype(np.float32) * strength / 255).astype(np.uint8)
     buffer = io.BytesIO()
     Image.fromarray(canvas).save(buffer, format="PNG")
     return {"image": "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode(),
